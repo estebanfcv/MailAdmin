@@ -308,7 +308,7 @@ public class AESCrypt {
             out.write(text);	// HMAC from previous cyphertext.
             debug("HMAC2: ", text);
         } catch (Exception e) {
-            System.out.println("el error es:::::: "+e.getMessage());
+            System.out.println("el error es:::::: " + e.getMessage());
             throw new GeneralSecurityException(JCE_EXCEPTION_MESSAGE, e);
         } finally {
             Util.cerrarLecturaEscritura(out, in);
@@ -323,7 +323,7 @@ public class AESCrypt {
      * Source file can be encrypted using version 1 or 2 of aescrypt.
      *
      * @param archivoOrigen
-     * @return 
+     * @return
      * @throws IOException when there are I/O errors.
      * @throws GeneralSecurityException if the platform does not support the
      * required cryptographic methods.
@@ -341,7 +341,7 @@ public class AESCrypt {
         } finally {
             Util.cerrarLecturaEscritura(null, in);
         }
-        return texto == null ? "" : texto;
+        return texto;
     }
 
     private String decrypt(long inSize, InputStream in)
@@ -436,6 +436,6 @@ public class AESCrypt {
             e.printStackTrace();
             throw new GeneralSecurityException(JCE_EXCEPTION_MESSAGE, e);
         }
-        return texto == null ? "" : texto;
+        return texto;
     }
 }

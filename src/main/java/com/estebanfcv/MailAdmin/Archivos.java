@@ -2,13 +2,21 @@ package com.estebanfcv.MailAdmin;
 
 import com.estebanfcv.Util.AESCrypt;
 import com.estebanfcv.Util.Constantes;
+import com.estebanfcv.Util.Util;
 import java.io.File;
 import javax.swing.JOptionPane;
 import static com.estebanfcv.Util.Util.obtenerRutaJar;
+import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 /**
  *
@@ -24,12 +32,17 @@ public class Archivos {
         try {
             aes = new AESCrypt(false, "123");
         } catch (GeneralSecurityException | UnsupportedEncodingException ex) {
-           ex.printStackTrace();
+            Util.agregarDebug(ex);
+            ex.printStackTrace();
         }
     }
 
     public boolean validarArchivos() {
         try {
+            if (!encontrarArchivoDebug()) {
+                JOptionPane.showMessageDialog(null, "El archivo debug no existe", "MailAdmin", JOptionPane.INFORMATION_MESSAGE);
+                return false;
+            }
             if (!encontrarArchivoProperties()) {
                 JOptionPane.showMessageDialog(null, "El archivo de configuración no existe", "MailAdmin", JOptionPane.INFORMATION_MESSAGE);
                 return false;
@@ -40,6 +53,7 @@ public class Archivos {
             }
             return encontrarCarpetaLogs();
         } catch (Exception e) {
+            Util.agregarDebug(e);
             e.printStackTrace();
         }
         return false;
@@ -61,6 +75,7 @@ public class Archivos {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            Util.agregarDebug(e);
             return false;
         }
         return false;
@@ -70,6 +85,19 @@ public class Archivos {
         try {
             if (jarDir != null && jarDir.isDirectory()) {
                 return new File(jarDir, Constantes.NOMBRE_ARCHIVO_CORREO).exists();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Util.agregarDebug(e);
+            return false;
+        }
+        return false;
+    }
+
+    private boolean encontrarArchivoDebug() {
+        try {
+            if (jarDir != null && jarDir.isDirectory()) {
+                return new File(jarDir, Constantes.NOMBRE_DEBUG).exists();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -85,6 +113,7 @@ public class Archivos {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            Util.agregarDebug(e);
             return false;
         }
         return false;
@@ -94,7 +123,27 @@ public class Archivos {
         try {
             aes.encriptar(2, "", new File(jarDir, Constantes.NOMBRE_ARCHIVO_MAIL_ADMIN));
         } catch (Exception e) {
+            Util.agregarDebug(e);
             e.printStackTrace();
+        }
+    }
+
+    public void generarLog(Calendar fecha) {
+        FileWriter fw = null;
+        PrintWriter pw = null;
+        File archivoLog;
+        try {
+            archivoLog = new File(Util.obtenerRutaCarpetaLogs(), String.valueOf(fecha.get(Calendar.DATE)) + ".txt");
+            if (!archivoLog.exists()) {
+                fw = new FileWriter(archivoLog);
+                pw = new PrintWriter(fw);
+                pw.append("Log del dia: " + new SimpleDateFormat("dd-MMMMM-yyyy").format(fecha.getTime()));
+            }
+        } catch (IOException e) {
+            Util.agregarDebug(e);
+            e.printStackTrace();
+        } finally {
+            Util.cerrarLecturaEscritura(pw, fw);
         }
     }
 }
