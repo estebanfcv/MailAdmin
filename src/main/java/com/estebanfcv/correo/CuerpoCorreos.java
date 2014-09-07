@@ -18,18 +18,10 @@ public class CuerpoCorreos {
             datosCorreo[2] = "smtp.gmail.com";
             datosCorreo[3] = "587";
             datosCorreo[4] = "1";
-
-            task = new MailTask("0", //idEmpresa
-                    to, //String to
-                    cc, //String cc
-                    asunto, //String subject
-                    texto, //String text
-                    datosCorreo, //String[] datosCorreo
-                    null);  //attachment
-            
+            task = new MailTask(to, cc, asunto, texto, datosCorreo, null);
             Thread t = new Thread(task);
             t.start();
-            while(t.isAlive()){
+            while (t.isAlive()) {
                 Thread.sleep(1000);
             }
             envioExitoso = task.isEnvioExitoso();
@@ -47,5 +39,4 @@ public class CuerpoCorreos {
         String html = "<html><body>" + contenido + "</body></html>";
         return enviarCorreo(asunto, html, "estebanfcv@gmail.com", null);
     }
-
 }

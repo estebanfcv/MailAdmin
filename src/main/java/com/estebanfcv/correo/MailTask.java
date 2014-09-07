@@ -42,7 +42,6 @@ public class MailTask implements Runnable {
 
     /**
      *
-     * @param idEmpresa
      * @param to
      * @param cc
      * @param subject
@@ -52,12 +51,7 @@ public class MailTask implements Runnable {
      * @throws AddressException
      * @throws UnsupportedEncodingException
      */
-    public MailTask(String idEmpresa,
-            String to,
-            String cc,
-            String subject,
-            String text,
-            String[] datosCorreo,
+    public MailTask(String to, String cc, String subject, String text, String[] datosCorreo,
             ByteArrayDataSource attachment) throws AddressException, UnsupportedEncodingException {
         this.user = datosCorreo[0];
         this.password = datosCorreo[1];
@@ -74,36 +68,6 @@ public class MailTask implements Runnable {
             String text,
             String[] datosCorreo,
             ByteArrayDataSource attachment) throws IllegalArgumentException, NullPointerException, AddressException, UnsupportedEncodingException {
-        if (to == null) {
-            throw new NullPointerException("to es nulo");
-        }
-        if (to.length() == 0) {
-            throw new IllegalArgumentException("to esta vacio");
-        }
-        if (subject == null) {
-            throw new NullPointerException("subject es nulo");
-        }
-        if (subject.length() == 0) {
-            throw new IllegalArgumentException("subject esta vacio");
-        }
-        if (text == null) {
-            throw new NullPointerException("text es nulo");
-        }
-        if (text.length() == 0) {
-            throw new IllegalArgumentException("text esta vacio");
-        }
-        if (datosCorreo[0] == null) {
-            throw new NullPointerException("from es nulo");
-        }
-        if (datosCorreo[0].length() == 0) {
-            throw new IllegalArgumentException("from esta vacio");
-        }
-        if (datosCorreo[2] == null) {
-            throw new NullPointerException("mail server es nulo");
-        }
-        if (datosCorreo[2].length() == 0) {
-            throw new IllegalArgumentException("mail server esta vacio");
-        }
         if (!datosCorreo[1].isEmpty()) {
             this.password = datosCorreo[1];
         }
@@ -228,7 +192,7 @@ public class MailTask implements Runnable {
         Session session = Session.getInstance(properties);
         return session;
     }
-    
+
     private void leerCorreo() {
         try {
             Store store = getSessionLectura().getStore("imaps");
@@ -243,7 +207,7 @@ public class MailTask implements Runnable {
 //                }
 //            }
             for (Message message : msg) {
-                System.out.println("TO:"+parseAddresses(message.getRecipients(RecipientType.TO)));
+                System.out.println("TO:" + parseAddresses(message.getRecipients(RecipientType.TO)));
                 System.out.println("FROM:" + message.getFrom()[0]);
                 System.out.println("SENT DATE:" + message.getSentDate());
                 System.out.println("SUBJECT:" + message.getSubject());
@@ -289,12 +253,12 @@ public class MailTask implements Runnable {
             e.printStackTrace();
         }
     }
-    
-        private String parseAddresses(Address[] address) {
+
+    private String parseAddresses(Address[] address) {
         String listAddress = "";
         if (address != null) {
-            for (int i = 0; i < address.length; i++) {
-                listAddress += address[i].toString() + ", ";
+            for (Address addres : address) {
+                listAddress += addres.toString() + ", ";
             }
         }
         if (listAddress.length() > 1) {
@@ -304,10 +268,13 @@ public class MailTask implements Runnable {
     }
 
     private class Authenticator extends javax.mail.Authenticator {
+
         private PasswordAuthentication authentication;
+
         public Authenticator() {
             authentication = new PasswordAuthentication(user, password);
         }
+
         @Override
         protected PasswordAuthentication getPasswordAuthentication() {
             return authentication;
