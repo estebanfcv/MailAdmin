@@ -2,15 +2,13 @@ package com.estebanfcv.Administrador;
 
 import com.estebanfcv.MailAdmin.Archivos;
 import com.estebanfcv.Util.AESCrypt;
+import com.estebanfcv.Util.Cache;
 import com.estebanfcv.Util.Constantes;
 import com.estebanfcv.Util.Util;
 import com.estebanfcv.conexion.Conexiones;
 import com.estebanfcv.correo.CuerpoCorreos;
-import java.io.ByteArrayInputStream;
+import com.estebanfcv.correo.MailTask;
 import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.security.GeneralSecurityException;
 import java.util.Calendar;
 import java.util.Properties;
 
@@ -22,18 +20,23 @@ public class HiloCorreo implements Runnable {
 
     private Archivos archivo;
     private AESCrypt aes;
-    private String archivoConfiguracion;
     private Properties propConfig;
     private Archivos arc;
     private Calendar fecha;
 
     public HiloCorreo() {
         try {
-            propConfig = new Properties();
+
+            fecha = Calendar.getInstance();
             arc = new Archivos();
+            arc.generarLog(fecha);
             aes = new AESCrypt(false, "123");
-        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+            Cache.inicializarPropiedades(fecha);
+            propConfig = Cache.getPropConfig();
+        } catch (Exception e) {
             e.printStackTrace();
+            Util.agregarDebug(e);
+            Util.agregarLog(Util.armarCadenaLog(e.getMessage()), fecha);
         }
     }
 
@@ -41,16 +44,19 @@ public class HiloCorreo implements Runnable {
     public void run() {
         try {
             while (true) {
-                fecha = Calendar.getInstance();
-                arc.generarLog(fecha);
-                if (!Conexiones.verificarConexionInternet()) {
-                    Thread.sleep(Long.parseLong(propConfig.getProperty("TiempoEsperaHilo")) * 60 * 1000);
+                MailTask task;
+                task = new MailTask(true);
+                Thread t = new Thread(task);
+                t.start();
+                Util.agregarLog(Util.armarCadenaLog("Iniciando proceso..."), fecha);
+                if (!Conexiones.verificarConexionInternet(fecha)) {
                     System.out.println("No hay internet");
-                    Util.agregarLog("No hay internet", fecha);
+                    Util.agregarLog(Util.armarCadenaLog("No hay internet"), fecha);
+                    Thread.sleep(10000);
                     continue;
+                } else {
+                    Util.agregarLog(Util.armarCadenaLog("Conectado"), fecha);
                 }
-                archivoConfiguracion = aes.desencriptar(new File(Util.obtenerRutaJar(), Constantes.NOMBRE_ARCHIVO_CONF));
-                propConfig.load(new ByteArrayInputStream(archivoConfiguracion.getBytes()));
                 archivo = new Archivos();
                 if (!archivo.revisarArchivoMailAdmin()) {
                     archivo.crearArchivoMailAdmin();
@@ -58,8 +64,10 @@ public class HiloCorreo implements Runnable {
                 compararCorreoPrincipal();
                 Thread.sleep(Long.parseLong(propConfig.getProperty("TiempoEsperaHilo")) * 60 * 1000);
             }
-        } catch (IOException | GeneralSecurityException | InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            Util.agregarDebug(e);
+            Util.agregarLog(Util.armarCadenaLog(e.getMessage()), fecha);
         }
     }
 
@@ -68,14 +76,14 @@ public class HiloCorreo implements Runnable {
             File archivoMail = new File(Util.obtenerRutaJar(), Constantes.NOMBRE_ARCHIVO_MAIL_ADMIN);
             String admin = aes.desencriptar(archivoMail);
             if (admin.isEmpty() || !propConfig.getProperty("EmailPrincipal").equals(admin)) {
-                if (CuerpoCorreos.enviarCorreoPorCambioEmail(admin.isEmpty() ? "Vacio" : admin,
-                        propConfig.getProperty("EmailPrincipal"))) {
-                    aes.encriptar(2, propConfig.getProperty("EmailPrincipal"), archivoMail);
-                    System.out.println("el correo se mando con éxito");
-                }
+//                if (CuerpoCorreos.enviarCorreoPorCambioEmail(admin.isEmpty() ? "Vacio" : admin,
+//                        propConfig.getProperty("EmailPrincipal"))) {
+//                    aes.encriptar(2, propConfig.getProperty("EmailPrincipal"), archivoMail);
+//                }
             }
-        } catch (IOException | GeneralSecurityException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            Util.agregarDebug(e);
         }
     }
 }

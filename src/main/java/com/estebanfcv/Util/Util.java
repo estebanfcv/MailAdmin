@@ -10,6 +10,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 
 /**
  *
@@ -108,7 +109,7 @@ public class Util {
              if (archivoLog.exists()) {
                 fw = new FileWriter(archivoLog,true);
                 pw = new PrintWriter(fw);
-                pw.append(log);
+                pw.append(log).append("\n");
             }
         } catch (Exception e) {
             Util.agregarDebug(e);
@@ -116,5 +117,9 @@ public class Util {
         }finally{
             cerrarLecturaEscritura(pw, fw);
         }
+    }
+    
+    public static String armarCadenaLog(String log){
+        return new SimpleDateFormat("dd/MMMMM/yyyy HH:mm:ss").format(new Date())+" "+log;
     }
 }

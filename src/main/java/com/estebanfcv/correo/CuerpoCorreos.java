@@ -11,7 +11,7 @@ public class CuerpoCorreos {
     private static boolean enviarCorreo(String asunto, String texto, String to, String cc) {
         boolean envioExitoso = false;
         try {
-            MailTask task = null;
+            MailTask task;
             String[] datosCorreo = new String[5];
             datosCorreo[0] = "estebanfcv.sware@gmail.com";
             datosCorreo[1] = "SwareAdminSupremo";

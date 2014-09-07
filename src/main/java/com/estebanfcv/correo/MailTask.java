@@ -1,15 +1,22 @@
 package com.estebanfcv.correo;
 
+import com.estebanfcv.Util.Util;
 import java.io.UnsupportedEncodingException;
 import java.util.Date;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import javax.activation.DataHandler;
+import javax.mail.Address;
+import javax.mail.BodyPart;
+import javax.mail.Folder;
 import javax.mail.Message;
+import javax.mail.Message.RecipientType;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
+import javax.mail.Part;
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
+import javax.mail.Store;
 import javax.mail.Transport;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
@@ -31,6 +38,7 @@ public class MailTask implements Runnable {
     private int port;
     private ByteArrayDataSource attachment;
     private boolean envioExitoso;
+    private boolean leer;
 
     /**
      *
@@ -54,6 +62,10 @@ public class MailTask implements Runnable {
         this.user = datosCorreo[0];
         this.password = datosCorreo[1];
         inicializaTask(to, cc, subject, text, datosCorreo, attachment);
+    }
+
+    public MailTask(boolean leer) {
+        this.leer = leer;
     }
 
     private void inicializaTask(String to,
@@ -119,26 +131,17 @@ public class MailTask implements Runnable {
         this.attachment = attachment;
     }
 
-    private void mandarCorreo() {
-        envioExitoso = false;
-        try {
+    @Override
+    public void run() {
+        if (!leer) {
+            envioExitoso = false;
             if (attachment == null) {
                 enviaCorreo();
             } else {
                 enviaCorreoConAttachment();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void run() {
-        envioExitoso = false;
-        if (attachment == null) {
-            enviaCorreo();
         } else {
-            enviaCorreoConAttachment();
+            leerCorreo();
         }
     }
 
@@ -219,14 +222,92 @@ public class MailTask implements Runnable {
         return session;
     }
 
+    private Session getSessionLectura() {
+        Properties properties = new Properties();
+        properties.setProperty("mail.store.protocol", "imaps");
+        Session session = Session.getInstance(properties);
+        return session;
+    }
+    
+    private void leerCorreo() {
+        try {
+            Store store = getSessionLectura().getStore("imaps");
+            store.connect("imap.gmail.com", "estebanfcv@gmail.com", "estebanfcv090.");
+            Folder inbox = store.getFolder("INBOX");
+            inbox.open(Folder.READ_ONLY);
+            Message msg[] = inbox.getMessages();
+//            javax.mail.Folder[] folders = store.getDefaultFolder().list("*");
+//            for (javax.mail.Folder folder : folders) {
+//                if ((folder.getType() & javax.mail.Folder.HOLDS_MESSAGES) != 0) {
+//                    System.out.println(folder.getFullName() + ": " + folder.getMessageCount());
+//                }
+//            }
+            for (Message message : msg) {
+                System.out.println("TO:"+parseAddresses(message.getRecipients(RecipientType.TO)));
+                System.out.println("FROM:" + message.getFrom()[0]);
+                System.out.println("SENT DATE:" + message.getSentDate());
+                System.out.println("SUBJECT:" + message.getSubject());
+                analizaParteDeMensaje(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Util.agregarDebug(e);
+        }
+    }
+
+    private static void analizaParteDeMensaje(Part parte) {
+        try {
+            // Si es multipart, se analiza cada una de sus partes recursivamente.
+            if (parte.isMimeType("multipart/*")) {
+                Multipart multi;
+                multi = (Multipart) parte.getContent();
+                for (int j = 0; j < multi.getCount(); j++) {
+                    analizaParteDeMensaje(multi.getBodyPart(j));
+                }
+            } else {
+                // Si es texto, se escribe el texto.
+                if (parte.isMimeType("text/*")) {
+                    System.out.println("Texto " + parte.getContentType());
+                    System.out.println(parte.getContent());
+                    System.out.println("---------------------------------");
+                } else {
+                    // Si es imagen, se guarda en fichero y se visualiza en JFrame
+                    if (parte.isMimeType("image/*")) {
+                        System.out.println(
+                                "Imagen " + parte.getContentType());
+                        System.out.println("Fichero=" + parte.getFileName());
+                        System.out.println("---------------------------------");
+                    } else {
+                        // Si no es ninguna de las anteriores, se escribe en pantalla
+                        // el tipo.
+                        System.out.println("Recibido " + parte.getContentType());
+                        System.out.println("---------------------------------");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+        private String parseAddresses(Address[] address) {
+        String listAddress = "";
+        if (address != null) {
+            for (int i = 0; i < address.length; i++) {
+                listAddress += address[i].toString() + ", ";
+            }
+        }
+        if (listAddress.length() > 1) {
+            listAddress = listAddress.substring(0, listAddress.length() - 2);
+        }
+        return listAddress;
+    }
+
     private class Authenticator extends javax.mail.Authenticator {
-
         private PasswordAuthentication authentication;
-
         public Authenticator() {
             authentication = new PasswordAuthentication(user, password);
         }
-
         @Override
         protected PasswordAuthentication getPasswordAuthentication() {
             return authentication;

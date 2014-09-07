@@ -35,7 +35,6 @@ public class MailAdmin {
                     JOptionPane.showMessageDialog(null, "Bienvenido", "MailAdmin", JOptionPane.INFORMATION_MESSAGE);
                     Thread hiloMail = new Thread(new HiloCorreo(), "HiloMail");
                     hiloMail.start();
-                    System.out.println("Hola");
                 }
             } else {
                 JOptionPane.showMessageDialog(null, "Contraseña incorrecta", "MailConfig", JOptionPane.ERROR_MESSAGE);
