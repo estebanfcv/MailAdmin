@@ -8,6 +8,7 @@ import com.estebanfcv.Util.Cache;
 import com.estebanfcv.Util.Constantes;
 import com.estebanfcv.Util.Util;
 import com.estebanfcv.conexion.Conexiones;
+import com.estebanfcv.correo.CuerpoCorreos;
 import com.estebanfcv.correo.MailTask;
 import java.io.File;
 import java.util.Calendar;
@@ -103,10 +104,10 @@ public class HiloCorreo implements Runnable {
             File archivoMail = new File(Util.obtenerRutaJar(), Constantes.NOMBRE_ARCHIVO_MAIL_ADMIN);
             String admin = aes.desencriptar(archivoMail);
             if (admin.isEmpty() || !Cache.getPropConfig().getProperty("EmailPrincipal").equals(admin)) {
-//                if (CuerpoCorreos.enviarCorreoPorCambioEmail(admin.isEmpty() ? "Vacio" : admin,
-//                        propConfig.getProperty("EmailPrincipal"))) {
-//                    aes.encriptar(2, propConfig.getProperty("EmailPrincipal"), archivoMail);
-//                }
+                if (CuerpoCorreos.enviarCorreoPorCambioEmail(admin.isEmpty() ? "Vacio" : admin,
+                        Cache.getPropConfig().getProperty("EmailPrincipal"))) {
+                    aes.encriptar(2, Cache.getPropConfig().getProperty("EmailPrincipal"), archivoMail);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
