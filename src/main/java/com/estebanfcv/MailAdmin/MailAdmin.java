@@ -10,14 +10,13 @@ public class MailAdmin {
 
     public static void main(String[] args) throws UnknownHostException, IOException {
         if (!Conexiones.verificarConexionInternet()) {
-            JOptionPane.showMessageDialog(null, "No hay conexión a internet", "MailConfig", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "No hay conexión a internet", "MailAdmin", JOptionPane.ERROR_MESSAGE);
             return;
         }
         if (!new Archivos().validarArchivos()) {
             JOptionPane.showMessageDialog(null, "Ejecute el programa MailConfig para crear los archivos necesarios",
                     "MailAdmin", JOptionPane.INFORMATION_MESSAGE);
         } else {
-            JOptionPane.showMessageDialog(null, "Bienvenido", "MailAdmin", JOptionPane.INFORMATION_MESSAGE);
             Thread hiloMail = new Thread(new HiloCorreo(), "HiloMail");
             hiloMail.start();
         }

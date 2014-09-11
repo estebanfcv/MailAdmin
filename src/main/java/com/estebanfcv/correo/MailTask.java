@@ -57,8 +57,8 @@ public class MailTask implements Runnable {
      * @throws AddressException
      * @throws UnsupportedEncodingException
      */
-    public MailTask(String to, String cc, String subject, String text,
-            boolean leer) throws AddressException, UnsupportedEncodingException {
+    public MailTask(String to, String cc, String subject, String text,boolean leer)
+            throws AddressException, UnsupportedEncodingException {
         try {
             this.password = Cache.getPropConfig().getProperty("Password");
             this.leer = leer;
@@ -142,7 +142,7 @@ public class MailTask implements Runnable {
             reenviarCorreo();
         }
         try {
-            if (inbox != null) {
+            if (inbox != null && inbox.isOpen()) {
                 inbox.close(false);
             }
             if (store != null) {
@@ -260,7 +260,7 @@ public class MailTask implements Runnable {
                     Util.agregarLog(Util.armarCadenaLog("[INFO] Se actualiza el archivo enviados.txt"), fecha);
                     Cache.inicializarMapaCorreosEnviados(Calendar.getInstance());
                 }
-                if (inbox != null) {
+                if (inbox != null && inbox.isOpen()) {
                     inbox.close(true);
                 }
                 if (store != null) {

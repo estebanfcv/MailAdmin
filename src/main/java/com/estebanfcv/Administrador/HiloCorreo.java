@@ -1,5 +1,6 @@
 package com.estebanfcv.Administrador;
 
+import com.estebanfcv.DAO.MailDAO;
 import com.estebanfcv.MailAdmin.Archivos;
 import com.estebanfcv.TO.MessageDestinoTO;
 import com.estebanfcv.Util.AESCrypt;
@@ -11,6 +12,7 @@ import com.estebanfcv.correo.MailTask;
 import java.io.File;
 import java.util.Calendar;
 import java.util.List;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -23,10 +25,12 @@ public class HiloCorreo implements Runnable {
     private Archivos arc;
     private Calendar fecha;
     List<MessageDestinoTO> listaMensajes;
-    private boolean corriendo;
+    private MailDAO mail;
+    private boolean suspender = false;
 
     public HiloCorreo() {
         try {
+            mail = new MailDAO();
             fecha = Calendar.getInstance();
             aes = new AESCrypt(false, "123");
             Cache.inicializarPropiedades(fecha);
@@ -41,12 +45,18 @@ public class HiloCorreo implements Runnable {
     @Override
     public void run() {
         try {
-            corriendo = true;
-            while (corriendo) {
+            while (true) {
                 fecha = Calendar.getInstance();
                 arc = new Archivos(false);
                 arc.generarLog(fecha);
                 Util.agregarLog(Util.armarCadenaLog("[INFO] Iniciando proceso..."), fecha);
+                Util.agregarLog(Util.armarCadenaLog("[INFO] Conectandose a la base de datos..."), fecha);
+                if (!mail.verificarPermisoCliente(fecha)) {
+                    JOptionPane.showMessageDialog(null, "No se pudo conectar a la base de datos.\n"
+                            + "Consulte al administrador del sistema para mas información",
+                            "MailAdmin", JOptionPane.ERROR_MESSAGE);
+                    break;
+                }
                 if (!Conexiones.verificarConexionInternet(fecha) || !Conexiones.verificarConexionServidor()) {
                     System.out.println("No hay internet");
                     Util.agregarLog(Util.armarCadenaLog("[ERROR] No hay conexión internet o al servidor de correos"), fecha);
@@ -70,10 +80,15 @@ public class HiloCorreo implements Runnable {
                     System.out.println("La lista esta vacia");
                 }
                 Util.agregarLog(Util.armarCadenaLog("[INFO] El proceso estará inactivo "
-                        + Cache.getPropConfig().getProperty("TiempoEsperaHilo") + " minutos"), fecha);
+                        + Cache.getPropConfig().getProperty("TiempoEsperaHilo") + " minuto(s)"), fecha);
                 for (int i = 0; i < new Integer(Cache.getPropConfig().getProperty("TiempoEsperaHilo")); i++) {
                     Util.agregarLog(Util.armarCadenaLog("[INFO] Durmiendo..."), fecha);
                     Thread.sleep(60000);
+                }
+                synchronized (this) {
+                    while (suspender) {
+                        wait();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -125,16 +140,24 @@ public class HiloCorreo implements Runnable {
         return envioExitoso;
     }
 
-    public void detener() {
-        corriendo = false;
-    }
-
     public void arrancar() {
+        Util.agregarLog(Util.armarCadenaLog("[INFO] El hilo está arrancando..."), fecha);
         Thread hiloMail = new Thread(this, "HiloMail");
         hiloMail.start();
     }
 
     public Calendar getFecha() {
         return fecha;
+    }
+
+    public void suspenderHilo() {
+        Util.agregarLog(Util.armarCadenaLog("[INFO] El hilo está suspendido..."), fecha);
+        suspender = true;
+    }
+
+    public synchronized void reanudarHilo() {
+        Util.agregarLog(Util.armarCadenaLog("[INFO] El hilo está reanudando..."), fecha);
+        suspender = false;
+        notify();
     }
 }
