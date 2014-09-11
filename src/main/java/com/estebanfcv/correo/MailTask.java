@@ -1,16 +1,20 @@
 package com.estebanfcv.correo;
 
+import com.estebanfcv.TO.CorreoTO;
+import com.estebanfcv.TO.MessageDestinoTO;
+import com.estebanfcv.Util.Cache;
 import com.estebanfcv.Util.Util;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import javax.activation.DataHandler;
 import javax.mail.Address;
-import javax.mail.BodyPart;
 import javax.mail.Folder;
 import javax.mail.Message;
-import javax.mail.Message.RecipientType;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
 import javax.mail.Part;
@@ -27,18 +31,22 @@ import javax.mail.util.ByteArrayDataSource;
 
 public class MailTask implements Runnable {
 
+    private List<CorreoTO> listaCorreos;
     private InternetAddress from;
     private InternetAddress[] to;
     private String subject;
     private String text;
     private String mailServer;
     private String password = "";
-    private String user = "";
     private String tls = "0";
     private int port;
     private ByteArrayDataSource attachment;
     private boolean envioExitoso;
     private boolean leer;
+    private MessageDestinoTO md;
+    private Store store;
+    private Folder inbox;
+    private Calendar fecha;
 
     /**
      *
@@ -46,52 +54,78 @@ public class MailTask implements Runnable {
      * @param cc
      * @param subject
      * @param text
-     * @param datosCorreo
-     * @param attachment
      * @throws AddressException
      * @throws UnsupportedEncodingException
      */
-    public MailTask(String to, String cc, String subject, String text, String[] datosCorreo,
-            ByteArrayDataSource attachment) throws AddressException, UnsupportedEncodingException {
-        this.user = datosCorreo[0];
-        this.password = datosCorreo[1];
-        inicializaTask(to, cc, subject, text, datosCorreo, attachment);
+    public MailTask(String to, String cc, String subject, String text,
+            boolean leer) throws AddressException, UnsupportedEncodingException {
+        try {
+            this.password = Cache.getPropConfig().getProperty("Password");
+            this.leer = leer;
+            inicializaTask(to, cc, subject, text, null);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Util.agregarDebug(e);
+        }
+
     }
 
-    public MailTask(boolean leer) {
-        this.leer = leer;
+    public MailTask(Calendar fecha) {
+        try {
+            this.fecha = fecha;
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Estableciendo comunicación con el servidor de correos"), fecha);
+            store = getSessionLectura().getStore("imaps");
+            store.connect("imap.gmail.com", Cache.getPropConfig().getProperty("EmailPrincipal"),
+                    Cache.getPropConfig().getProperty("Password"));
+            inbox = store.getFolder("INBOX");
+            inbox.open(Folder.READ_WRITE);
+        } catch (Exception e) {
+            Util.agregarLog(Util.armarCadenaLog("[ERRO] No se pudo establecer comunicación con el servidor de correos"), fecha);
+            e.printStackTrace();
+            Util.agregarDebug(e);
+        }
     }
 
-    private void inicializaTask(String to,
-            String cc,
-            String subject,
-            String text,
-            String[] datosCorreo,
+    public MailTask(MessageDestinoTO md, Calendar fecha) {
+        try {
+            this.fecha = fecha;
+            leer = true;
+            this.password = Cache.getPropConfig().getProperty("Password");
+            this.tls = Cache.getPropConfig().getProperty("TLS");
+            this.from = new InternetAddress(Cache.getPropConfig().getProperty("EmailPrincipal"));
+            this.mailServer = Cache.getPropConfig().getProperty("Servidor");
+            this.port = Integer.parseInt(Cache.getPropConfig().getProperty("Puerto"));
+            store = getSessionLectura().getStore("imaps");
+            store.connect("imap.gmail.com", Cache.getPropConfig().getProperty("EmailPrincipal"),
+                    Cache.getPropConfig().getProperty("Password"));
+            inbox = store.getFolder("INBOX");
+            inbox.open(Folder.READ_WRITE);
+            this.md = md;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Util.agregarDebug(ex);
+        }
+
+    }
+
+    private void inicializaTask(String to, String cc, String subject, String text,
             ByteArrayDataSource attachment) throws IllegalArgumentException, NullPointerException, AddressException, UnsupportedEncodingException {
-        if (!datosCorreo[1].isEmpty()) {
-            this.password = datosCorreo[1];
-        }
-        if (!datosCorreo[4].isEmpty()) {
-            this.tls = datosCorreo[4];
-        }
-        this.from = new InternetAddress(datosCorreo[0]);
+        this.tls = Cache.getPropConfig().getProperty("TLS");
+        this.from = new InternetAddress(Cache.getPropConfig().getProperty("EmailPrincipal"));
         if (cc != null) {
             this.to = new InternetAddress[]{new InternetAddress(to), new InternetAddress(cc)};
         } else {
-            System.out.println("La lista de emails es:::::: " + to);
             StringTokenizer token = new StringTokenizer(to, ",");
             int conta = 0;
             this.to = new InternetAddress[token.countTokens()];
-            System.out.println("tamanio " + this.to.length);
             while (token.hasMoreTokens()) {
                 this.to[conta++] = new InternetAddress(token.nextToken().trim());
             }
         }
-
         this.subject = subject;
         this.text = text;
-        this.mailServer = datosCorreo[2];
-        this.port = Integer.parseInt(datosCorreo[3]);
+        this.mailServer = Cache.getPropConfig().getProperty("Servidor");
+        this.port = Integer.parseInt(Cache.getPropConfig().getProperty("Puerto"));
         this.attachment = attachment;
     }
 
@@ -105,7 +139,17 @@ public class MailTask implements Runnable {
                 enviaCorreoConAttachment();
             }
         } else {
-            leerCorreo();
+            reenviarCorreo();
+        }
+        try {
+            if (inbox != null) {
+                inbox.close(false);
+            }
+            if (store != null) {
+                store.close();
+            }
+        } catch (Exception e) {
+            Util.agregarDebug(e);
         }
     }
 
@@ -151,6 +195,7 @@ public class MailTask implements Runnable {
     private void enviaCorreo() {
         try {
             MimeMessage message = new MimeMessage(getSession());
+
             message.setFrom(from);
             message.setRecipients(Message.RecipientType.TO, to);
             message.setSubject(subject, "UTF-8");
@@ -162,6 +207,69 @@ public class MailTask implements Runnable {
         } catch (Exception e) {
             envioExitoso = false;
             e.printStackTrace();
+        }
+    }
+
+    private void reenviarCorreo() {
+        MimeMessage message = new MimeMessage(getSession());
+        try {
+//            System.out.println("el ID es::::::: " + message.getMessageID());
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Datos del correo"), fecha);
+            this.from = new InternetAddress(Cache.getPropConfig().getProperty("EmailPrincipal"), "Original "
+                    + parseAddresses(md.getMensaje().getFrom()));
+            Util.agregarLog(Util.armarCadenaLog("[INFO] De: " + parseAddresses(md.getMensaje().getFrom())), fecha);
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Asunto: " + md.getMensaje().getSubject()), fecha);
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Fecha de envio: " + md.getMensaje().getSentDate()), fecha);
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Se envió a: " + md.getCorreoOrigen()), fecha);
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Se enviará a: " + md.getCorreoDestino()), fecha);
+            Util.agregarLog(Util.armarCadenaLog(""), fecha);
+
+            message.setFrom(from);
+            message.setRecipients(Message.RecipientType.TO, md.getCorreoDestino());
+            message.setSubject(md.getMensaje().getSubject());
+            message.setContent((Multipart) md.getMensaje().getContent());
+            message.saveChanges();
+            Transport transport = getSession().getTransport("smtp");
+            transport.send(message);
+            md.setEnvioExitoso(true);
+        } catch (Exception e) {
+            md.setEnvioExitoso(false);
+            e.printStackTrace();
+            Util.agregarDebug(e);
+            try {
+                Util.agregarLog(Util.armarCadenaLog("[ERROR] No se pudo mandar el correo: "), fecha);
+                Util.agregarLog(Util.armarCadenaLog("[ERROR] De: " + parseAddresses(md.getMensaje().getFrom())), fecha);
+                Util.agregarLog(Util.armarCadenaLog("[ERROR] Asunto: " + md.getMensaje().getSubject()), fecha);
+                Util.agregarLog(Util.armarCadenaLog("[ERROR] Fecha de envio: " + md.getMensaje().getSentDate()), fecha);
+                Util.agregarLog(Util.armarCadenaLog(""), fecha);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                Util.agregarDebug(e);
+            }
+
+        } finally {
+            try {
+                if (md.isEnvioExitoso()) {
+                    Util.agregarLog(Util.armarCadenaLog("[INFO] El correo se envió: "), fecha);
+                    Util.agregarLog(Util.armarCadenaLog("[INFO] De: " + parseAddresses(md.getMensaje().getFrom())), fecha);
+                    Util.agregarLog(Util.armarCadenaLog("[INFO] Asunto: " + md.getMensaje().getSubject()), fecha);
+                    Util.agregarLog(Util.armarCadenaLog("[INFO] Fecha de envio: " + md.getMensaje().getSentDate()), fecha);
+                    Util.agregarLog(Util.armarCadenaLog(""), fecha);
+                    Util.agregarLog(Util.armarCadenaLog("[INFO] Se agrega el correo al archivo enviados.txt"), fecha);
+                    Util.agregarCorreoEnviado(md.getMensaje().getMessageID());
+                    Util.agregarLog(Util.armarCadenaLog("[INFO] Se actualiza el archivo enviados.txt"), fecha);
+                    Cache.inicializarMapaCorreosEnviados(Calendar.getInstance());
+                }
+                if (inbox != null) {
+                    inbox.close(true);
+                }
+                if (store != null) {
+                    store.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                Util.agregarDebug(e);
+            }
         }
     }
 
@@ -177,11 +285,7 @@ public class MailTask implements Runnable {
         properties.setProperty("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
         properties.setProperty("mail.smtp.socketFactory.fallback", "false");
         properties.setProperty("mail.smtp.socketFactory.port", "465");
-        if (null == tls || "0".equals(tls)) {
-            properties.put("mail.smtp.starttls.enable", "false");
-        } else {
-            properties.put("mail.smtp.starttls.enable", "true");
-        }
+        properties.put("mail.smtp.starttls.enable", null == tls || "0".equals(tls) ? "false" : "true");
         Session session = Session.getInstance(properties, authenticator);
         return session;
     }
@@ -193,30 +297,45 @@ public class MailTask implements Runnable {
         return session;
     }
 
-    private void leerCorreo() {
+    public List<MessageDestinoTO> leerCorreo() {
+
+        List<MessageDestinoTO> listaMensajes = new ArrayList<>();
         try {
-            Store store = getSessionLectura().getStore("imaps");
-            store.connect("imap.gmail.com", "estebanfcv@gmail.com", "estebanfcv090.");
-            Folder inbox = store.getFolder("INBOX");
-            inbox.open(Folder.READ_ONLY);
-            Message msg[] = inbox.getMessages();
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Leyendo el archivo correos.ecv"), fecha);
+            listaCorreos = Cache.getListaCorreos();
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Obteniendo los correos del email principal"), fecha);
+            Message arregloCorreos[] = inbox.getMessages();
 //            javax.mail.Folder[] folders = store.getDefaultFolder().list("*");
 //            for (javax.mail.Folder folder : folders) {
 //                if ((folder.getType() & javax.mail.Folder.HOLDS_MESSAGES) != 0) {
 //                    System.out.println(folder.getFullName() + ": " + folder.getMessageCount());
 //                }
 //            }
-            for (Message message : msg) {
-                System.out.println("TO:" + parseAddresses(message.getRecipients(RecipientType.TO)));
-                System.out.println("FROM:" + message.getFrom()[0]);
-                System.out.println("SENT DATE:" + message.getSentDate());
-                System.out.println("SUBJECT:" + message.getSubject());
-                analizaParteDeMensaje(message);
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Se obtendrán los correos que vayan dirigidos a "
+                    + "las cuentas origen del archivo correos.ecv y que no se hayan enviado a la cuenta destino"), fecha);
+            for (Message message : arregloCorreos) {
+                MimeMessage correo = new MimeMessage((MimeMessage) message);
+                System.out.println("el id es::::::: " + correo.getMessageID());
+                for (CorreoTO c : listaCorreos) {
+                    if (Cache.getCorreosEnviados().get(correo.getMessageID()) == null) {
+//                    if (parseAddresses(message.getRecipients(RecipientType.TO)).contains(c.getCorreoOrigen())) {
+                        MessageDestinoTO mensaje = new MessageDestinoTO();
+                        mensaje.setPermisoBorrar(c.getBorrar());
+                        mensaje.setMensaje(correo);
+                        mensaje.setCorreoDestino(c.getCorreoDestino());
+                        mensaje.setCorreoOrigen(c.getCorreoOrigen());
+                        Util.agregarLog(Util.armarCadenaLog("[INFO] Se obtuvo el correo " + mensaje.getMensaje().getSubject()),
+                                fecha);
+                        listaMensajes.add(mensaje);
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
+            Util.agregarLog(Util.armarCadenaLog("[ERROR] No se pudieron leer los correos"), fecha);
             Util.agregarDebug(e);
         }
+        return listaMensajes;
     }
 
     private static void analizaParteDeMensaje(Part parte) {
@@ -269,10 +388,10 @@ public class MailTask implements Runnable {
 
     private class Authenticator extends javax.mail.Authenticator {
 
-        private PasswordAuthentication authentication;
+        private final PasswordAuthentication authentication;
 
         public Authenticator() {
-            authentication = new PasswordAuthentication(user, password);
+            authentication = new PasswordAuthentication(from.getAddress(), password);
         }
 
         @Override

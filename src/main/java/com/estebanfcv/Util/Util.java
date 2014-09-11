@@ -1,7 +1,9 @@
 package com.estebanfcv.Util;
 
 import com.estebanfcv.MailAdmin.MailAdmin;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,7 +26,7 @@ public class Util {
             f = new File(MailAdmin.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile();
         } catch (Exception e) {
             e.printStackTrace();
-             Util.agregarDebug(e);
+            Util.agregarDebug(e);
         }
         return f;
     }
@@ -53,12 +55,12 @@ public class Util {
                 is.close();
             }
         } catch (Exception e) {
-             Util.agregarDebug(e);
+            Util.agregarDebug(e);
             e.printStackTrace();
         }
     }
-    
-       public static void cerrarLecturaEscritura(PrintWriter pw, FileWriter fw) {
+
+    public static void cerrarLecturaEscritura(PrintWriter pw, FileWriter fw) {
         try {
             if (pw != null) {
                 pw.close();
@@ -67,12 +69,28 @@ public class Util {
                 fw.close();
             }
         } catch (Exception e) {
-             Util.agregarDebug(e);
+            Util.agregarDebug(e);
             e.printStackTrace();
         }
     }
 
-  public static void agregarDebug(Exception e) {
+    public static void cerrarLecturaEscritura(BufferedReader br, FileReader fr) {
+        try {
+            if (br != null) {
+                br.close();
+            }
+
+            if (fr != null) {
+                fr.close();
+            }
+
+        } catch (Exception e) {
+            Util.agregarDebug(e);
+            e.printStackTrace();
+        }
+    }
+
+    public static void agregarDebug(Exception e) {
         Writer error = new StringWriter();
         e.printStackTrace(new PrintWriter(error));
         StringBuilder sb = new StringBuilder();
@@ -89,7 +107,7 @@ public class Util {
         FileWriter fw = null;
         PrintWriter pw = null;
         try {
-            archivoDebug = new File(obtenerRutaJar(), "debug.txt");
+            archivoDebug = new File(obtenerRutaJar(), Constantes.NOMBRE_DEBUG);
             fw = new FileWriter(archivoDebug, true);
             pw = new PrintWriter(fw);
             pw.append(debug);
@@ -99,27 +117,49 @@ public class Util {
             cerrarLecturaEscritura(pw, fw);
         }
     }
-    
-    public static void agregarLog(String log, Calendar fecha){
-         File archivoLog;
+
+    public static void agregarLog(String log, Calendar fecha) {
+        File archivoLog;
         FileWriter fw = null;
         PrintWriter pw = null;
         try {
-            archivoLog= new File(obtenerRutaCarpetaLogs(), String.valueOf(fecha.get(Calendar.DATE)) + ".txt");
-             if (archivoLog.exists()) {
-                fw = new FileWriter(archivoLog,true);
+            archivoLog = new File(obtenerRutaCarpetaLogs(), String.valueOf(fecha.get(Calendar.DATE)) + ".txt");
+            if (archivoLog.exists()) {
+                fw = new FileWriter(archivoLog, true);
                 pw = new PrintWriter(fw);
                 pw.append(log).append("\n");
             }
         } catch (Exception e) {
             Util.agregarDebug(e);
             e.printStackTrace();
-        }finally{
+        } finally {
             cerrarLecturaEscritura(pw, fw);
         }
     }
-    
-    public static String armarCadenaLog(String log){
-        return new SimpleDateFormat("dd/MMMMM/yyyy HH:mm:ss").format(new Date())+" "+log;
+
+    public static void agregarCorreoEnviado(String idCorreo) {
+        File archivoEnviados;
+        FileWriter fw = null;
+        PrintWriter pw = null;
+        try {
+            archivoEnviados = new File(obtenerRutaJar(), Constantes.NOMBRE_ENVIADOS);
+            if (archivoEnviados.exists()) {
+                fw = new FileWriter(archivoEnviados, true);
+                pw = new PrintWriter(fw);
+                pw.append(idCorreo).append("\n");
+            }
+        } catch (Exception e) {
+            Util.agregarDebug(e);
+            e.printStackTrace();
+        } finally {
+            cerrarLecturaEscritura(pw, fw);
+        }
+    }
+
+    public static String armarCadenaLog(String log) {
+        if (log.isEmpty()) {
+            return log;
+        }
+        return new SimpleDateFormat("dd/MMMMM/yyyy HH:mm:ss").format(new Date()) + " " + log;
     }
 }

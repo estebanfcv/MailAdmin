@@ -12,13 +12,7 @@ public class CuerpoCorreos {
         boolean envioExitoso = false;
         try {
             MailTask task;
-            String[] datosCorreo = new String[5];
-            datosCorreo[0] = "estebanfcv.sware@gmail.com";
-            datosCorreo[1] = "SwareAdminSupremo";
-            datosCorreo[2] = "smtp.gmail.com";
-            datosCorreo[3] = "587";
-            datosCorreo[4] = "1";
-            task = new MailTask(to, cc, asunto, texto, datosCorreo, null);
+            task = new MailTask(to, cc, asunto, texto, false);
             Thread t = new Thread(task);
             t.start();
             while (t.isAlive()) {

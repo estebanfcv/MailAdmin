@@ -3,9 +3,12 @@ package com.estebanfcv.MailAdmin;
 import com.estebanfcv.Util.AESCrypt;
 import com.estebanfcv.Util.Constantes;
 import com.estebanfcv.Util.Util;
+import static com.estebanfcv.Util.Util.obtenerRutaCarpetaLogs;
 import java.io.File;
 import javax.swing.JOptionPane;
 import static com.estebanfcv.Util.Util.obtenerRutaJar;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -31,6 +34,10 @@ public class Archivos {
             Util.agregarDebug(ex);
             ex.printStackTrace();
         }
+    }
+    
+    public Archivos(boolean vacio){
+        
     }
 
     public boolean validarArchivos() {
@@ -102,23 +109,28 @@ public class Archivos {
         return false;
     }
 
-    public boolean revisarArchivoMailAdmin() {
+    public boolean revisarArchivoMailAdmin(Calendar fecha) {
         try {
+             Util.agregarLog(Util.armarCadenaLog("[INFO] Validando el archivo mail.ecv"), fecha);
             if (jarDir != null && jarDir.isDirectory()) {
                 return new File(jarDir, Constantes.NOMBRE_ARCHIVO_MAIL_ADMIN).exists();
             }
+            Util.agregarLog(Util.armarCadenaLog("[Error] No se pudo leer el archivo mail.ecv"), fecha);
         } catch (Exception e) {
             e.printStackTrace();
             Util.agregarDebug(e);
+            Util.agregarLog(Util.armarCadenaLog("[Error] No se pudo leer el archivo mail.ecv"), fecha);
             return false;
         }
         return false;
     }
 
-    public void crearArchivoMailAdmin() {
+    public void crearArchivoMailAdmin(Calendar fecha) {
         try {
+            Util.agregarLog(Util.armarCadenaLog("[INFO] Creando el archivo mail.ecv"), fecha);
             aes.encriptar(2, "", new File(jarDir, Constantes.NOMBRE_ARCHIVO_MAIL_ADMIN));
         } catch (Exception e) {
+            Util.agregarLog(Util.armarCadenaLog("[ERROR] No se pudo crear el archivo mail.ecv"), fecha);
             Util.agregarDebug(e);
             e.printStackTrace();
         }
@@ -142,4 +154,6 @@ public class Archivos {
             Util.cerrarLecturaEscritura(pw, fw);
         }
     }
+
+
 }
